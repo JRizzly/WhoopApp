@@ -1,0 +1,30 @@
+                 List of relations
+ Schema |           Name            | Type  | Owner 
+--------+---------------------------+-------+-------
+ public | administrator_roles       | table | whoop
+ public | alembic_version           | table | whoop
+ public | blocked_users             | table | whoop
+ public | contacts                  | table | whoop
+ public | device_characteristics    | table | whoop
+ public | devices                   | table | whoop
+ public | group_members             | table | whoop
+ public | groups                    | table | whoop
+ public | message_activity          | table | whoop
+ public | message_configs           | table | whoop
+ public | message_templates         | table | whoop
+ public | messages                  | table | whoop
+ public | notifications             | table | whoop
+ public | off_network_buckets       | table | whoop
+ public | off_network_contacts      | table | whoop
+ public | off_network_group_members | table | whoop
+ public | off_network_messages      | table | whoop
+ public | received_messages         | table | whoop
+ public | reported_messages         | table | whoop
+ public | roles                     | table | whoop
+ public | sponsors                  | table | whoop
+ public | standard_roles            | table | whoop
+ public | survey_responses          | table | whoop
+ public | users                     | table | whoop
+ public | verification_codes        | table | whoop
+(25 rows)
+

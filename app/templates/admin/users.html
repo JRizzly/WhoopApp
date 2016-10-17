@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block link %}
+<link rel="stylesheet" href="/static/stylesheets/users.css">
+{% endblock %}
+
+{% block content %}
+
+{% raw %}
+
+<div id="main">
+
+    <confirm v-ref:confirm></confirm>
+    <messages v-ref:messages></messages>
+
+    <component id="main-component"
+               :is="vue_name" 
+               :state="state"
+               transition="fade"
+               transition-mode="out-in">
+    </component>
+</div>
+
+<script id="main-vue" type="x-template">
+    <div>
+        <h4>Users</h4>
+
+        <div class="uk-button-group">
+            <button class="uk-button"
+                    type="button"
+                    @click="new">
+                <i class="uk-icon-plus"></i> New
+            </button>
+            <button class="uk-button"
+                    type="button"
+                    v-disabled="!users_table_status.one_row_selected"
+                    @click="edit">
+                <i class="uk-icon-edit"></i> Edit
+            </button>
+            <button class="uk-button"
+                    type="button"
+                    v-disabled="!users_table_status.one_or_more_rows_selected"
+                    @click="delete">
+                <i class="uk-icon-remove"></i> Delete
+            </button>
+        </div>
+
+        <data-tables :options="users_table_options" 
+                     :status="users_table_status"
+                     :data="users">
+        </data-tables>
+    </div>
+</script>
+
+<script id="edit-vue" type="x-template">
+    <div>
+        <button type="button"
+                class="uk-button"
+                @click="cancel">
+            <i class="uk-icon-chevron-left"></i> Back
+        </button>
+
+        <h4>{{ state.edit.mode }} User</h4>
+
+        <form autocomplete="off" class="uk-form uk-form-stacked">
+            <fieldset v-disabled="busy">
+
+                <div class="uk-grid">
+                    <div class="uk-width-1-4">
+                        <div class="uk-form-row">
+                            <label for="first_name" class="uk-form-label">
+                                First Name
+                                <span class="uk-badge uk-badge-danger">required</span>
+                            </label>
+
+                            <div class="uk-form-controls">
+                                <input id="first_name"
+                                       type="text"
+                                       placeholder="John"
+                                       :class='{ "uk-form-danger": !valid.first_name && submitted }'
+                                       v-model="user.first_name">
+                            </div>
+
+                            <small class="uk-text-danger"
+                                   v-show='!valid.first_name_required && submitted'>
+                                Please enter a first name.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="uk-width-1-4">
+                        <div class="uk-form-row">
+                            <label for="last_name" class="uk-form-label">
+                                Last Name
+                                <span class="uk-badge uk-badge-danger">required</span>
+                            </label>
+
+                            <div class="uk-form-controls">
+                                <input id="last_name"
+                                       type="text"
+                                       placeholder="Doe"
+                                       :class='{ "uk-form-danger": !valid.last_name && submitted }'
+                                       v-model="user.last_name">
+                            </div>
+
+                            <small class="uk-text-danger"
+                                   v-show='!valid.last_name_required && submitted'>
+                                Please enter a last name.
+                            </small>
+                        </div>
+                    </div>
+                    <div class="uk-width-2-4">
+                        <div class="uk-form-row">
+                            <label for="email_address" class="uk-form-label">
+                                Email Address
+                                <span class="uk-badge uk-badge-danger">required</span>
+                            </label>
+
+                            <div class="uk-form-controls">
+                                <input id="email_address"
+                                       type="email"
+                                       placeholder="jdoe@example.com"
+                                       v-restrict-input.literal="[^ ]"
+                                       :class='{ "uk-form-danger": !valid.email_address && submitted }'
+                                       v-model="user.email_address">
+                            </div>
+
+                            <small class="uk-text-danger"
+                                   v-show='!valid.email_address_required && submitted'>
+                                Please enter an email address.
+                            </small>
+                            <small class="uk-text-danger"
+                                   v-show='!valid.email_address_format && submitted'>
+                                Please enter a valid email address.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="uk-grid">
+                    <div class="uk-width-1-2">
+                        <div class="uk-form-row">
+                            <label for="password" class="uk-form-label">
+                                Password 
+                                <span v-show="state.edit.mode == 'Edit'">(leave blank to keep current password)</span>
+                                <span class="uk-badge uk-badge-danger" v-show="state.edit.mode == 'New'">required</span>
+                            </label>
+
+                            <div class="uk-form-controls">
+                                <input id="password"
+                                       type="password"
+                                       placeholder="********"
+                                       autocomplete="off"
+                                       :class='{ "uk-form-danger": !valid.password && submitted }'
+                                       v-model="user.password">
+                            </div>
+                            <small class="uk-text-danger"
+                                   v-show='!valid.password_require_on_new && submitted'>
+                                Please enter a password.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="uk-grid">
+                    <div class="uk-width-1-2">
+                        <div class="uk-form-row">
+                            <label class="uk-form-label">
+                                Role
+                            </label>
+
+                            <div class="uk-form-controls uk-form-controls-text">
+                                <input name="role"
+                                       id="standard"
+                                       value="standard"
+                                       type="radio"
+                                       v-model="user.role.type">
+                                <label for="standard">
+                                    Standard
+                                </label>
+                                <br>
+                                <input name="role"
+                                       id="administrator"
+                                       value="administrator"
+                                       type="radio"
+                                       v-model="user.role.type">
+                                <label for="administrator">
+                                    Administrator
+                                </label>
+                            </div>
+
+                            <small class="uk-text-danger"
+                                   v-show="user.role.type == '' && submitted">
+                                Please select a role.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+            </fieldset>    
+        </form>
+        <div class="uk-text-right">
+            <i class="uk-icon-spinner uk-icon-spin"
+               v-show="is_modal"></i>
+            <button class="uk-button"
+                    type="button"
+                    @click="cancel"
+                    v-disabled="is_modal">
+                Cancel
+            </button>
+            <button class="uk-button"
+                    type="button"
+                    @click="save"
+                    v-disabled="is_modal">
+                Save
+            </button>
+        </div>
+    </div>
+</script>
+{% endraw %}
+
+{% include "databakery/messages.html" %}
+{% include "databakery/confirm.html" %}
+
+{% endblock %}
+
+{% block scripts %}
+
+{% assets filters="uglifyjs", output="compiled/users.js", 
+    "javascripts/databakery/messages.js",
+    "javascripts/databakery/confirm.js",
+    "javascripts/databakery/datatables.js",
+    "javascripts/app/managers.js",
+    "javascripts/app/users.js" %}
+    <script src="{{ ASSET_URL }}"></script>
+{% endassets %}
+
+{% endblock %}

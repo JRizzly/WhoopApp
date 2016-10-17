@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block link %}
+<link rel="stylesheet" href="/static/stylesheets/signin.css">
+{% endblock %}
+
+{% block menu %}{% endblock %}
+
+{% block content %}
+
+{% raw %}
+<div id="app">
+    <messages v-ref:messages></messages>
+
+    <form class="uk-form">
+        <div class="uk-grid">
+            <div class="uk-width-4-10"></div>
+            <div class="uk-width-2-10">
+                Email Address
+                <br>
+                <input type="text" v-model="email_address" class="uk-width-1-1">
+                <small class="uk-alert-danger">
+                </small>
+            </div>
+        </div>
+        <div class="uk-grid">
+            <div class="uk-width-4-10"></div>
+            <div class="uk-width-2-10">
+                Password
+                <br>
+                <input type="password" v-model="password" class="uk-width-1-1">
+                <small class="uk-alert-danger">
+                </small>
+            </div>
+        </div>
+        <div class="uk-grid">
+            <div class="uk-width-4-10"></div>
+            <div class="uk-width-2-10 uk-text-right">
+                <button class="uk-button"
+                        type="button"
+                        @click="sign_in">Sign In</a>
+            </div>
+        </div>
+    </form>
+</button>
+{% endraw %}
+
+{% include "databakery/messages.html" %}
+
+{% endblock %}
+
+{% block scripts %}
+
+{% assets output="compiled/signin.js", 
+    "javascripts/databakery/messages.js",
+    "javascripts/app/managers.js",
+    "javascripts/app/signin.js" %}
+    <script src="{{ ASSET_URL }}"></script>
+{% endassets %}
+
+{% endblock %}

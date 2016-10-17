@@ -1,0 +1,33 @@
+@import "../static/vendor/uikit/scss/uikit-mixins.scss";
+
+$icon-font-path: "../vendor/uikit/fonts";
+
+@import "../static/vendor/uikit/scss/uikit-variables.scss";
+@import "theme/uikit.scss";
+@import "../static/vendor/uikit/scss/uikit.scss";
+
+/* IMPORT UIKIT COMPONENTS HERE */
+
+@import "redactor";
+
+::-webkit-input-placeholder {
+   color: #EEEEEE !important;
+}
+ 
+:-moz-placeholder { /* Firefox 18- */
+   color: #EEEEEE !important;
+}
+
+::-moz-placeholder {  /* Firefox 19+ */
+   color: #EEEEEE !important;
+}
+ 
+:-ms-input-placeholder {  
+   color: #EEEEEE !important;
+}
+
+[v-cloak] {
+    display: none;
+}
+
+

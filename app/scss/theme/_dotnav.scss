@@ -1,0 +1,49 @@
+//
+// Component: Dotnav
+//
+// ========================================================================
+
+
+// Variables
+// ========================================================================
+
+
+// Component
+// ========================================================================
+
+@mixin hook-dotnav-item()
+{
+    -webkit-transition: all 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out;
+}
+
+@mixin hook-dotnav-item-hover()
+{}
+
+@mixin hook-dotnav-item-onclick()
+{}
+
+@mixin hook-dotnav-item-active()
+{
+    -webkit-transform: scale(1.3);
+    transform: scale(1.3);
+}
+
+@mixin hook-dotnav-contrast-item()
+{}
+
+@mixin hook-dotnav-contrast-item-hover()
+{}
+
+@mixin hook-dotnav-contrast-item-onclick()
+{}
+
+@mixin hook-dotnav-contrast-item-active()
+{}
+
+
+// Miscellaneous
+// ========================================================================
+
+@mixin hook-dotnav-misc()
+{}

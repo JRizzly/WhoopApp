@@ -1,0 +1,2 @@
+30 2 * * 1 /opt/letsencrypt/letsencrypt-auto renew >> /var/log/letsencrypt/letsencrypt.log
+35 2 * * 1 /etc/init.d/nginx reload

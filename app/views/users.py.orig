@@ -1,0 +1,257 @@
+# Copyright (c) 2014 Data Bakery LLC. All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without modification, are permitted
+# provided that the following conditions are met:
+# 
+#     1. Redistributions of source code must retain the above copyright notice, this list of
+# conditions and the following disclaimer.
+# 
+#     2. Redistributions in binary form must reproduce the above copyright notice, this list of
+# conditions and the following disclaimer in the documentation and/or other materials provided with
+# the distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY DATA BAKERY LLC ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL DATA BAKERY LLC OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import logging
+l = logging.getLogger(__name__)
+
+import random
+import string
+import gevent
+
+from flask import render_template, flash, redirect, url_for, request, current_app, make_response, session, abort
+from flask.ext.login import login_required, login_user, current_user, logout_user, confirm_login, login_fresh
+from flask.ext.classy import route
+
+from app import app
+from app.exceptions import *
+from app.util import require, JSONRESTView, login_required_json, DataModelMixin
+from app.models.users import User, AdministratorRole, StandardRole, Role
+from app.models.messages import Message, ReceivedMessage, ReportedMessage
+from app.models.contacts import Contact
+from app.views.misc import authenticate
+
+from sqlalchemy import update
+
+@app.route("/users", methods=["GET"])
+@login_required
+@require("can_manage_settings")
+def users():
+    return render_template(
+        "admin/users.html",
+        title="Users",
+        user=current_user
+    )
+
+
+class Users(JSONRESTView):
+    route_base = "/api/v{}/users/".format(app.config["API_VERSION"])
+    model = User
+
+    def _ensure_one_admin(self, response):
+        current_app.db.session.flush()
+
+        if User.query.join(Role).filter(Role.type == "administrator").count() == 0:
+            raise ConsistencyError("There must be at least one administrator in the system.")
+
+        return response
+
+    after_put = _ensure_one_admin
+    after_delete = _ensure_one_admin
+
+    @classmethod
+    def _to_data(class_, user):
+        user_data = user._to_data(
+            exclude=[ "password", "_password" ],
+            follow={
+                "role": {
+                    "exclude": [ "id", "user_id" ]
+                }
+            }
+        )
+
+        user_data["__meta__"] = {
+            "type": "user",
+            "href": url_for("Users:get", id=user.id)
+        }
+        
+        return user_data
+
+    def _role_type_to_role_class(self, role_type):
+        return {
+            "administrator": AdministratorRole,
+            "standard": StandardRole
+        }[role_type]
+
+    @login_required_json
+    @require("can_manage_settings")
+    def index(self):
+        result_data, query = self._process_pagination()
+        user_data = [
+            self._to_data(user)
+            for user in query.all()
+        ]
+
+        result_data["items"] = user_data
+        return self._respond(result_data)
+
+    @login_required_json
+    @require("can_get_user")
+    def get(self, id):
+        if id == "me":
+            id = current_user.id
+
+        user = User.query.get(id)
+        if user is None:
+            raise NotFoundError("user not found")
+
+        user_data = self._to_data(user)
+        return self._respond(user_data)
+
+    @login_required_json
+    @require("can_manage_settings")
+    def post(self):
+        user_data = request.json
+
+        if User.query.filter(User.email_address == user_data["email_address"]).first() is not None:
+            raise ValidationError("That email address is already in use.")
+
+        role_data = user_data.pop("role")
+        user_data["role"] = self._role_type_to_role_class(role_data["type"])(**role_data)
+
+        user = User(**user_data)
+
+        session = current_app.db.session
+        session.add(user)
+        session.flush()
+
+        return redirect(url_for("Users:get", id=user.id), 303)
+
+    @login_required_json
+    @require("can_manage_settings")
+    def put(self, id):
+        user = User.query.get(id)
+
+        if user is None:
+            raise NotFoundError("user not found")
+
+        user_data = request.json
+
+        role_data = user_data.pop("role")
+        if role_data["type"] == user.role.type:
+            user.role._from_data(role_data)
+        else:
+            user.role = self._role_type_to_role_class(role_data["type"])(**role_data)
+
+        l.debug("user_data = {}".format(user_data))
+
+        user._from_data(user_data, exclude=["id"])
+
+        response = redirect(url_for("Users:get", id=user.id), 303)
+        return response
+
+    @login_required_json
+    @require("can_manage_settings")
+    def delete(self, id):
+        user = User.query.get(id)
+        if user is None:
+            raise NotFoundError("user not found")
+
+        session = current_app.db.session
+        session.delete(user)
+        return self._respond({})
+
+    @route("/authenticate", methods=[ "POST" ])
+    def authenticate(self):
+        if authenticate(
+            request.json["email_address"],
+            request.json["password"]
+        ):
+            sessiondb = current_app.db.session                  
+            user_info = sessiondb.query(User.id, User.first_name, User.last_name, User.mobile_no, User.email_address).filter(User.email_address == request.json["email_address"]).first()
+#            print("json userid: " + str(user_info._asdict()))
+#            return self._respond(data) # JJH 2-19-2016: pass user info back to device on method call for saving on device
+            return self._respond(user_info._asdict())
+
+        raise ForbiddenError("authentication failed")
+
+    @route("/signout", methods=[ "POST" ])
+    def signout(self):
+        # Clear out the CSRF token.
+        if "xsrf_token" in session:
+            del session["xsrf_token"]
+        response = make_response()
+        response.set_cookie("XSRF-TOKEN", "", expires=0, secure=current_app.config["SESSION_COOKIE_SECURE"])
+
+        logout_user()
+        return response
+    
+    @login_required_json
+    @route("/<user_id>/messages", methods=[ "GET" ])
+    def user_messages(self, user_id):
+        sessiondb = current_app.db.session
+        messages = sessiondb.query(ReceivedMessage.status, Message.message_text, Message.id, User.first_name, User.last_name, Message.message_config_id, Message.send_date).\
+            join(Message, ReceivedMessage.message_id == Message.id).\
+            join(User, Message.sender_id == User.id).\
+            filter(ReceivedMessage.recipient_id == user_id).order_by(ReceivedMessage.status.desc())
+#        l.info("Query: " + str(messages))
+#        l.info("Results: " + str(messages.all()))
+        message_data = [ message._asdict() for message in messages.all() ]
+        return self._respond(message_data)
+
+    @login_required_json
+    @route("/<user_id>/messages/<message_id>/status", methods=[ "POST" ])
+    def user_message_status(self, user_id, message_id):
+        sessiondb = current_app.db.session
+        message = sessiondb.query(ReceivedMessage).filter(ReceivedMessage.message_id==message_id).filter(ReceivedMessage.recipient_id==user_id).all()
+
+        if message is None:
+            raise NotFoundError("message not found")
+<<<<<<< HEAD
+        if message.recipient_id == user_id:
+            if message.status.lower() == "unread":
+                message.status = "read"
+            else:
+                message.status = "unread"
+        sessiondb.add(message)
+        sessiondb.flush()
+        
+        data = message._to_data
+        return self._respond(data)
+=======
+
+        sessiondb.query(ReceivedMessage).filter(ReceivedMessage.message_id==message_id).filter(ReceivedMessage.recipient_id==user_id).update({"status": u"read"})
+        return "Success"
+
+    @login_required_json
+    @route("/<user_id>/contacts/", methods=[ "POST" ])
+    def user_add_new_contact(self, user_id):
+        sessiondb = current_app.db.session
+        contact_data = request.json
+        print("contact: " + str(contact_data))
+        contact_id = sessiondb.query(User.id).\
+            filter(User.first_name == contact_data["first_name"]).\
+            filter(User.last_name == contact_data["last_name"]).\
+            filter(User.email_address == contact_data["email_address"]).\
+            filter(User.mobile_no == contact_data["mobile_no"]).all()
+        print("contact_id: " + str(contact_id))
+        if not contact_id:
+            print("contact not found")
+        else:
+            print("contact_id[0]: " + str(contact_id[0][0]))
+            new_contact = Contact(user_id, contact_id[0][0])
+            sessiondb.add(new_contact)
+
+        return "Success"
+>>>>>>> 3da333aee62ed65f52346913b5882f6fb8092d2e
+
+Users.register(app)
+
+

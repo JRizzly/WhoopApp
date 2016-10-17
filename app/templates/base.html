@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <!-- Set the viewport width to device width for mobile -->
+        <meta name="viewport" content="width=device-width" />
+
+        <title>{{ title }}</title>
+
+        <!-- Included CSS Files -->
+        {% assets filters="cssmin,cssrewrite", output="compiled/all.css",
+            "vendor/DataTables/media/css/jquery.dataTables.css",
+            "vendor/datatables-tabletools/css/dataTables.tableTools.css",
+            "vendor/jqueryui/themes/smoothness/jquery-ui.css" %}
+            <link rel="stylesheet" href="{{ ASSET_URL }}">
+        {% endassets %}
+
+        {% block link %}{% endblock %}
+
+    </head>
+    <body id="app">
+
+        {% block menu %}
+        <nav class="uk-navbar">
+            <ul class="uk-navbar-nav">
+                <li><a href="/" class="uk-navbar-brand">Application</a></li>
+                {% if user and user.role.type == "administrator" %}
+                <li><a href="/users">Users</a></li>
+                {% endif %}        
+            </ul>
+            <div class="uk-navbar-flip">
+                <ul class="uk-navbar-nav">
+                    <li><a href="/signout">Signout</a></li>
+                </ul>
+            </div>
+        </nav>        
+        {% endblock %}
+
+        {% block content %}{% endblock %}
+
+        {% block footer %}
+        <footer class="uk-grid">
+            <div class="uk-width-1-1 uk-text-center">
+                <hr />
+         
+                <p>Copyright &copy; {{ current_year() }} AICIA Corp.</p>
+            </div>
+        </footer>
+        {% endblock %}
+
+        {% assets filters="uglifyjs", output="compiled/script.js",
+            "vendor/loglevel/dist/loglevel.js",
+            "vendor/lodash/lodash.js",
+            "vendor/jquery/dist/jquery.js",
+            "vendor/jqueryui/jquery-ui.js",
+            "vendor/DataTables/media/js/jquery.dataTables.js",
+            "vendor/datatables-tabletools/js/dataTables.tableTools.js",
+            "vendor/rsvp/rsvp.js",
+            "vendor/superagent/superagent.js",
+            "vendor/uikit/js/uikit.js",
+            "vendor/vue/dist/vue.js",
+            "vendor/pystringformat/src/pystringformat.js",
+            "vendor/cookies-js/dist/cookies.js",
+            "vendor/uri.js/src/URI.js",
+            "javascripts/databakery/util.js",
+            "javascripts/redactor/redactor.js" %}
+            <script src="{{ ASSET_URL }}"></script>
+        {% endassets %}
+
+        <script>
+            var uri = new URI(window.location.href);
+            var query = uri.query(true);
+        
+            if ({{ config["DEBUG"]|tojson }} || !_.isUndefined(query["_debug"])) {
+                log.enableAll();
+                log.debug("enabled debugging");
+                Vue.config.debug = true;
+            }
+        </script>
+
+        {% block scripts %}{% endblock %}
+    </body>
+</html>

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block link %}
+<link rel="stylesheet" href="/static/stylesheets/index.css">
+{% endblock %}
+
+{% block content %}
+
+{% raw %}
+
+<confirm v-ref:confirm></confirm>
+<messages v-ref:messages></messages>
+
+<div class="uk-text-center">
+    <p>Hello world. {{ test }}</p>
+</div>
+
+{% endraw %}
+
+{% include "databakery/confirm.html" %}
+{% include "databakery/messages.html" %}
+
+{% endblock %}
+
+{% block scripts %}
+
+{% assets filters="uglifyjs", output="compiled/index.js", 
+    "javascripts/databakery/messages.js",
+    "javascripts/databakery/confirm.js",
+    "javascripts/databakery/datatables.js",
+    "javascripts/app/managers.js",
+    "javascripts/app/index.js" %}
+    <script src="{{ ASSET_URL }}"></script>
+{% endassets %}
+
+{% endblock %}
